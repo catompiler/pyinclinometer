@@ -22,6 +22,10 @@ from AltitudeIndicator import AltitudeIndicator
 
 DT = 0.01
 
+#lcd_spi: busio.SPI = None
+#display: gc9a01.GC9A01A = None
+
+
 class Vec3:
     x: float
     y: float
@@ -79,6 +83,8 @@ orient: Orientation = Orientation()
 calibr: Calibration = Calibration()
 
 def init_lcd():
+    #global lcd_spi
+    #global display
     # Raspberry Pi Pico pinout, one possibility, at "southwest" of board
     tft_clk = board.GP10  # must be a SPI CLK
     tft_mosi = board.GP11  # must be a SPI TX
@@ -86,8 +92,8 @@ def init_lcd():
     tft_dc = board.GP8
     tft_cs = board.GP9  # optional, can be "None"
     tft_bl = board.GP25  # optional, can be "None"
-    spi = busio.SPI(clock=tft_clk, MOSI=tft_mosi)
-    display_bus = fourwire.FourWire(spi, command=tft_dc, chip_select=tft_cs, reset=tft_rst)
+    lcd_spi = busio.SPI(clock=tft_clk, MOSI=tft_mosi)
+    display_bus = fourwire.FourWire(lcd_spi, command=tft_dc, chip_select=tft_cs, reset=tft_rst, baudrate=100000000)
     display = gc9a01.GC9A01A(display_bus, width=240, height=240, backlight_pin=tft_bl, auto_refresh=False)
     return display
 
