@@ -21,7 +21,7 @@ except ImportError:
 from KalmanFilter import KalmanFilter
 from AltitudeIndicator import AltitudeIndicator
 
-DT = 0.02
+DT = 0.05
 
 #lcd_spi: busio.SPI = None
 #display: gc9a01.GC9A01A = None
