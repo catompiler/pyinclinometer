@@ -95,7 +95,7 @@ def init_lcd():
     tft_bl = board.GP25  # optional, can be "None"
     lcd_spi = busio.SPI(clock=tft_clk, MOSI=tft_mosi)
     display_bus = fourwire.FourWire(lcd_spi, command=tft_dc, chip_select=tft_cs, reset=tft_rst, baudrate=100000000)
-    display = gc9a01.GC9A01A(display_bus, width=240, height=240, backlight_pin=tft_bl, auto_refresh=False)
+    display = gc9a01.GC9A01A(display_bus, width=240, height=240, backlight_pin=tft_bl, auto_refresh=True)
     return display
 
 
@@ -222,11 +222,11 @@ async def lcd_handle(display):
     alt_ind = AltitudeIndicator(main_group)
 
     # label
-    text_group = displayio.Group(scale=2, x=50, y=120)
-    text = " "*10
-    text_area = bitmap_label.Label(terminalio.FONT, text=text, color=0xFFFF00)
-    text_group.append(text_area)  # Subgroup for text scaling
-    main_group.append(text_group)
+    # text_group = displayio.Group(scale=2, x=50, y=120)
+    # text = " "*10
+    # text_area = bitmap_label.Label(terminalio.FONT, text=text, color=0xFFFF00)
+    # text_group.append(text_area)  # Subgroup for text scaling
+    # main_group.append(text_group)
 
     half_pi = math.pi / 2
 
@@ -248,15 +248,15 @@ async def lcd_handle(display):
 
         alt_ind.roll = roll
         alt_ind.pitch = pitch
-        #t_prev = time.monotonic()
+
+        t_prev = time.monotonic()
         alt_ind.update()
         #t_cur = time.monotonic()
         #print("update time:", t_cur - t_prev, "s")
 
-        text_area.text = f"{orient.pitch * 180 / math.pi}\n{orient.roll * 180 / math.pi}"
-
-        t_prev = time.monotonic()
-        display.refresh()
+        #t_prev = time.monotonic()
+        #display.refresh()
+        #text_area.text = f"{orient.pitch * 180 / math.pi}\n{orient.roll * 180 / math.pi}"
         t_cur = time.monotonic()
         print("repaint time:", t_cur - t_prev, "s")
 

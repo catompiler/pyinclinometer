@@ -1,6 +1,6 @@
 import math
 
-#from adafruit_display_shapes.filled_polygon import FilledPolygon
+#from adafruit_display_shapes.polygon import Polygon
 from vectorio import Polygon
 from vectorio import Circle
 from vectorio import Rectangle
@@ -45,7 +45,8 @@ class AltitudeIndicator:
     SKY_COLOR_INDEX: int = const(2)
     GND_COLOR_INDEX: int = const(3)
 
-    PLANE_BODY_RADIUS: int = const(5)
+    PLANE_BODY_RADIUS: int = const(4)
+    PLANE_WINGS_STROKE: int = const(4)
 
     roll: float
     pitch: float
@@ -65,8 +66,6 @@ class AltitudeIndicator:
     plane_group: displayio.Group
     plane_wings: list[np.ndarray]
     plane_body: np.ndarray
-    poly_plane_wings: [list[Polygon]]
-    poly_plane_body: Circle
 
     def __init__(self, group: displayio.Group):
         self.roll = 0.0
@@ -90,29 +89,27 @@ class AltitudeIndicator:
         # sky & gnd
         self.back_group = displayio.Group()
         self.poly_sky = Rectangle(pixel_shader=self.palette, width=self.WIDTH, height=self.HALF_HEIGHT, x=0, y=0, color_index=self.SKY_COLOR_INDEX)
-        self.poly_gnd = Rectangle(pixel_shader=self.palette, width=self.WIDTH, height=self.HALF_HEIGHT, x=0, y=self.HALF_WIDTH, color_index=self.GND_COLOR_INDEX)
+        self.poly_gnd = Rectangle(pixel_shader=self.palette, width=self.WIDTH, height=self.HALF_HEIGHT, x=0, y=self.HALF_HEIGHT, color_index=self.GND_COLOR_INDEX)
         self.back_group.append(self.poly_sky)
         self.back_group.append(self.poly_gnd)
 
         # plane
         # data
         self.plane_body = np.array([0, 0], dtype=np.int16)
+        #d2 = self.PLANE_WINGS_STROKE >> 1
         self.plane_wings = [
-            np.array([(-60, 0), (-15, 0), (-15, 15)], dtype=np.int16),
-            np.array([(15, 15), (15, 0), (60, 0)], dtype=np.int16)
+            np.array([(-60, 0), (-15, 0), (-15, 15)], dtype=np.int16), # - d2,
+            np.array([(15, 15), (15, 0), (60, 0)], dtype=np.int16)# -d2
         ]
         # drawings
         self.plane_group = displayio.Group()
-        self.poly_plane_body = None
-        self.poly_plane_wings = [
-            None,
-            None
-        ]
-        self._update_plane()
+        [self.plane_group.append(displayio.Group()) for _ in range(5)]
 
         self.main_group = displayio.Group()
         self.main_group.append(self.back_group)
         self.main_group.append(self.plane_group)
+
+        self._update_plane()
 
     #@utimeit
     def _update_rot_mat(self):
@@ -133,19 +130,28 @@ class AltitudeIndicator:
 
     #@utimeit
     def _update_plane(self):
-        pts = self.plane_body + (self.move_vec + self.zero_tran_vec)
-        if self.poly_plane_body is not None:
-            self.plane_group.remove(self.poly_plane_body)
-        self.poly_plane_body = Circle(pixel_shader=self.palette, radius=self.PLANE_BODY_RADIUS, x=int(pts[0]), y=int(pts[1]), color_index=self.PLANE_COLOR_INDEX)
-        self.plane_group.append(self.poly_plane_body)
+        # gnd
+        #self.poly_gnd.y = self.HALF_HEIGHT + int(self.move_vec[1])
 
-        for i, w in enumerate(self.plane_wings):
-            pts = self.get_rotated(w)
-            pts += (self.move_vec + self.zero_tran_vec)
-            if self.poly_plane_wings[i] is not None:
-                self.plane_group.remove(self.poly_plane_wings[i])
-            self.poly_plane_wings[i] = Polygon(pixel_shader=self.palette, x=0, y=0, points=utils.ndarray_to_points(pts), color_index=self.PLANE_COLOR_INDEX)
-            self.plane_group.append(self.poly_plane_wings[i])
+        # body
+        pts = self.plane_body + (self.move_vec + self.zero_tran_vec)
+        #pts = self.plane_body + self.zero_tran_vec
+        poly = Circle(pixel_shader=self.palette, radius=self.PLANE_BODY_RADIUS, x=int(pts[0]), y=int(pts[1]), color_index=self.PLANE_COLOR_INDEX)
+        self.plane_group[0] = poly
+
+        # wings
+        # left
+        wing = self.get_rotated(self.plane_wings[0])
+        wing += (self.move_vec + self.zero_tran_vec)
+        #wing += self.zero_tran_vec
+        self.plane_group[1] = Polygon(pixel_shader=self.palette, x=0, y=0, points=utils.ndarray_to_points(wing), color_index=self.PLANE_COLOR_INDEX)
+        #self.plane_group[1] = Polygon(points=utils.ndarray_to_points(wing), outline=self.WHITE_COLOR_VALUE, close=False, colors=1, stroke=self.PLANE_WINGS_STROKE)
+        # right
+        wing = self.get_rotated(self.plane_wings[1])
+        wing += (self.move_vec + self.zero_tran_vec)
+        #wing += self.zero_tran_vec
+        self.plane_group[2] = Polygon(pixel_shader=self.palette, x=0, y=0, points=utils.ndarray_to_points(wing), color_index=self.PLANE_COLOR_INDEX)
+        #self.plane_group[2] = Polygon(points=utils.ndarray_to_points(wing), outline=self.WHITE_COLOR_VALUE, close=False, colors=1, stroke=self.PLANE_WINGS_STROKE)
 
 
     def update(self):
