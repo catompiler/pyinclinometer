@@ -1,6 +1,7 @@
 import board
 import busio
 import fourwire
+import gc
 import terminalio
 import displayio
 import adafruit_gc9a01a as gc9a01
@@ -20,7 +21,7 @@ except ImportError:
 from KalmanFilter import KalmanFilter
 from AltitudeIndicator import AltitudeIndicator
 
-DT = 0.01
+DT = 0.02
 
 #lcd_spi: busio.SPI = None
 #display: gc9a01.GC9A01A = None
@@ -207,6 +208,8 @@ async def imu_handle(imu):
         orient.pitch = pitch
         orient.dt = dt
         #
+        #print("Accel & gyro calc time:", time.monotonic() - cur_time, "s")
+        #
         last_time = time.monotonic()
         await asyncio.sleep(DT)
 
@@ -220,7 +223,7 @@ async def lcd_handle(display):
 
     # label
     text_group = displayio.Group(scale=2, x=50, y=120)
-    text = "Hello World!"
+    text = " "*10
     text_area = bitmap_label.Label(terminalio.FONT, text=text, color=0xFFFF00)
     text_group.append(text_area)  # Subgroup for text scaling
     main_group.append(text_group)
@@ -229,6 +232,9 @@ async def lcd_handle(display):
 
     roll: float = 0.0
     pitch: float = 0.0
+
+    t_prev: float = 0.0
+    t_cur: float = 0.0
 
     while True:
         roll = orient.roll - half_pi
@@ -242,10 +248,24 @@ async def lcd_handle(display):
 
         alt_ind.roll = roll
         alt_ind.pitch = pitch
+        #t_prev = time.monotonic()
         alt_ind.update()
+        #t_cur = time.monotonic()
+        #print("update time:", t_cur - t_prev, "s")
+
         text_area.text = f"{orient.pitch * 180 / math.pi}\n{orient.roll * 180 / math.pi}"
+
+        t_prev = time.monotonic()
         display.refresh()
+        t_cur = time.monotonic()
+        print("repaint time:", t_cur - t_prev, "s")
+
         await asyncio.sleep(0.1)
+
+async def gc_collect():
+    while True:
+        gc.collect()
+        await asyncio.sleep(0.001)
 
 async def run():
     displayio.release_displays()
@@ -255,8 +275,9 @@ async def run():
 
     imu_task = asyncio.create_task(imu_handle(imu))
     lcd_task = asyncio.create_task(lcd_handle(display))
+    gc_task = asyncio.create_task(gc_collect())
 
-    await asyncio.gather(imu_task, lcd_task)
+    await asyncio.gather(imu_task, lcd_task, gc_task)
 
 
 def main():

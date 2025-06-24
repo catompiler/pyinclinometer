@@ -12,7 +12,7 @@ except ImportError:
 
 import displayio
 import adafruit_display_shapes as shapes
-
+from utimeit import utimeit
 
 
 class AltitudeIndicator:
@@ -22,6 +22,7 @@ class AltitudeIndicator:
     HALF_HEIGHT: int = const(HEIGHT >> 1)
 
     HALF_PI: float = const(math.pi / 2)
+    INV_HALF_PI = 1.0 / HALF_PI
 
     SKY_COLOR: int = 0x019faf
     GND_COLOR: int = 0xb04602
@@ -64,7 +65,7 @@ class AltitudeIndicator:
         #
         self.rot_mat = np.array([[0, 0], [0, 0]])
         self.move_vec = np.array([0, 0])
-        self.zero_tran_vec = np.array([[self.HALF_WIDTH], [self.HALF_HEIGHT]])
+        self.zero_tran_vec = np.array([self.HALF_WIDTH, self.HALF_HEIGHT])
         #
         self.build_main_group()
         #
@@ -80,21 +81,24 @@ class AltitudeIndicator:
         self.main_group.append(self.sky_poly)
         self.main_group.append(self.gnd_poly)
 
+    #@utimeit
     def _update_rot_mat(self):
         roll_sin = np.sin(self.roll)
         roll_cos = np.cos(self.roll)
         self.rot_mat = np.array([[roll_cos, -roll_sin], [roll_sin, roll_cos]])
 
+    #@utimeit
     def _update_move_vec(self):
         pitch = max(min(self.pitch, self.HALF_PI), - self.HALF_PI)
-        self.move_vec[0] = 0.0
-        self.move_vec[1] = pitch * self.HALF_HEIGHT / self.HALF_PI
+        #self.move_vec[0] = 0.0
+        self.move_vec[1] = pitch * self.HALF_HEIGHT * self.INV_HALF_PI
         #print(self.move_vec)
 
     def get_rotated_rect(self, rect: np.ndarray) -> np.ndarray:
         res_rect = np.array([np.dot(self.rot_mat, v) for v in rect])
         return res_rect
 
+    #@utimeit
     def _update_sky_gnd(self):
         # sky
         # pitch
@@ -103,9 +107,8 @@ class AltitudeIndicator:
         rect[3] = rect[3] + self.move_vec
         # roll
         rect = self.get_rotated_rect(rect)
-        rect = [self.zero_tran_vec + v.T for v in rect]
-        points = [(int(p[0, 0]), int(p[0, 1])) for p in rect]
-        self.sky_poly.points = points
+        rect += self.zero_tran_vec
+        self.sky_poly.points = list(map(tuple, np.array(rect, dtype=np.int16)))
 
         # ground
         # pitch
@@ -114,9 +117,8 @@ class AltitudeIndicator:
         rect[1] = rect[1] + self.move_vec
         # roll
         rect = self.get_rotated_rect(rect)
-        rect = [self.zero_tran_vec + v.T for v in rect]
-        points = [(int(p[0, 0]), int(p[0, 1])) for p in rect]
-        self.gnd_poly.points = points
+        rect += self.zero_tran_vec
+        self.gnd_poly.points = list(map(tuple, np.array(rect, dtype=np.int16)))
 
     def update(self):
         self._update_move_vec()
